@@ -3,15 +3,17 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Deployable Scramjet web proxy (proxy-bootstrap + Wisp, single port)",
+  "description": "Deployable Scramjet proxy serving the LOCAL workspace build (no npm runtime downloads)",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "sync": "node sync-build.mjs"
   },
-  "engines": {
-    "node": ">=20"
-  },
+  "engines": { "node": ">=20" },
   "dependencies": {
-    "@mercuryworkshop/proxy-bootstrap": "^0.0.5",
+    "@mercuryworkshop/wisp-js": "^0.4.1",
     "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@mercuryworkshop/libcurl-transport": "^2.0.5"
   }
 }

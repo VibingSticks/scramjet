@@ -1,36 +1,60 @@
-# Scramjet Proxy (deployable)
+# Scramjet Proxy (serves the LOCAL build)
 
-A single-port, Render-ready Scramjet web proxy built on
-[`@mercuryworkshop/proxy-bootstrap`](https://www.npmjs.com/package/@mercuryworkshop/proxy-bootstrap).
+A single-port, Render-ready Scramjet web proxy that serves **this repo's own
+build** — not the npm packages. Your edits to Scramjet's source are what gets
+deployed.
 
-`bootstrap()` downloads the Scramjet client, controller, utils, and the Wisp
-transport (libcurl.js) from npm at startup, and serves them alongside the Wisp
-backend on one port. Nothing from the parent monorepo (or the Rust toolchain)
-is needed — this folder is a standalone npm project.
+The Scramjet client, controller, utils, wasm, and the libcurl transport are
+copied into `vendor/` and served from there. Wisp runs on the same port at
+`/wisp/`. No npm downloads happen at runtime.
 
-## Run locally
+## Update workflow (after editing Scramjet source)
+
 ```bash
-npm install
-npm start            # http://localhost:3030  (set PORT to override)
+# 1. rebuild Scramjet at the REPO ROOT (rebuilds dist, incl. Rust wasm if changed)
+cd ..
+pnpm build            # or: cd packages/core && RELEASE=1 pnpm rewriter:build && pnpm build
+
+# 2. copy the fresh build into app/vendor/
+cd app
+npm install           # first time only (installs express, wisp-js, libcurl-transport)
+npm run sync          # copies dist -> vendor/
+
+# 3. run it
+npm start             # http://localhost:3030  (set PORT to override)
+
+# 4. deploy: commit vendor/ and push
+git add vendor server.js && git commit -m "update build" && git push
 ```
 
-## Deploy to Render (free)
-Push this repo to GitHub, then either:
+`vendor/` is committed on purpose — Render can't rebuild the Rust wasm, so the
+built assets ship in the repo. `npm run sync` refreshes them from your local
+`pnpm build` output.
 
-- **Blueprint:** the repo-root `render.yaml` builds this folder automatically
-  (`rootDir: app`).
-- **Manual Web Service:** set
+## Deploy to Render (free)
+
+- **Blueprint:** the repo-root `render.yaml` builds this folder (`rootDir: app`).
+- **Manual Web Service:**
   - **Root Directory:** `app`
   - **Build Command:** `npm install`
   - **Start Command:** `node server.js`
   - **Instance Type:** Free
 
-The server reads Render's injected `PORT`. Wisp is served on the same port at
-`/wisp/` — no second port needed. HTTPS is automatic on the `*.onrender.com`
-subdomain.
+The server reads Render's `PORT`; HTTPS is automatic on `*.onrender.com`.
+Because `vendor/` is committed, Render needs no build step beyond `npm install`
+and never touches the Rust toolchain.
+
+## Files
+
+- `server.js` — serves `vendor/` assets + generates `/sw.js` and
+  `/bootstrap-init.js`, runs Wisp on `/wisp/`.
+- `sync-build.mjs` — copies the workspace build into `vendor/`.
+- `vendor/` — the committed Scramjet build (refreshed by `npm run sync`).
+- `public/` — the proxy UI (edit `index.html` to customize).
 
 ## Notes
-- On each cold start, `bootstrap()` fetches packages from npm — needs outbound
-  network (Render has it) and adds a few seconds to startup.
+
 - Free tier sleeps after ~15 min idle (~50 s cold start on next visit).
-- Customize the UI by editing `public/index.html`.
+- The libcurl transport (`vendor/libcurl-client.js`) comes from npm — it isn't
+  part of Scramjet, so it's not something you'd modify. `npm run sync` refreshes
+  it from the `@mercuryworkshop/libcurl-transport` devDependency.
