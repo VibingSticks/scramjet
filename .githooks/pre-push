@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Pre-push guard: keep app/vendor/ in sync with the current Scramjet build.
+# Runs `npm run sync` to refresh vendor/ from the latest `pnpm build` output.
+# If that changes anything, the vendor/ you're about to push is stale, so the
+# push is aborted until you commit the refreshed files.
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+
+# Nothing to sync from on a fresh clone / prod install — don't block the push.
+if [ ! -f "$repo_root/app/node_modules/@mercuryworkshop/libcurl-transport/dist/index.js" ] \
+   || [ ! -d "$repo_root/packages/core/dist" ]; then
+  echo "pre-push: skipping vendor sync (build output or transport dep not present)"
+  exit 0
+fi
+
+echo "pre-push: refreshing app/vendor from current build..."
+( cd "$repo_root/app" && npm run --silent sync >/dev/null )
+
+if ! git -C "$repo_root" diff --quiet -- app/vendor; then
+  echo
+  echo "  app/vendor/ was STALE - 'npm run sync' just updated it from your build."
+  echo "  Commit the refreshed vendor/ before pushing:"
+  echo
+  echo "      git add app/vendor && git commit -m 'sync vendor'"
+  echo
+  echo "  (If you edited Scramjet source, run 'pnpm build' at the repo root first.)"
+  exit 1
+fi
+
+echo "pre-push: app/vendor is up to date."
+exit 0
