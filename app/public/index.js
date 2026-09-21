@@ -14,7 +14,21 @@ const CODE_LEN = 10;
 const errorEl = document.getElementById("error");
 const acceptedEl = document.getElementById("accepted");
 const proxyEl = document.getElementById("proxy");
-document.getElementById("host").textContent = location.hostname || "this site";
+// Populate the Cloudflare error facade with live-looking values.
+(function fillCloudflare() {
+  const host = location.hostname || "example.com";
+  const hex = (n) => Array.from({ length: n }, () =>
+    "0123456789abcdef"[Math.floor(Math.random() * 16)]).join("");
+  const ray = hex(15) + "a1b" + Math.floor(100 + Math.random() * 900); // e.g. 8f3c...a1b204
+  const now = new Date().toUTCString().replace(/^\w+, /, "").replace(" GMT", "");
+  const ip = [Math.floor(Math.random()*223)+1, Math.floor(Math.random()*256),
+    Math.floor(Math.random()*256), Math.floor(Math.random()*254)+1].join(".");
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set("cf-host", host); set("cf-host2", host); set("cf-host3", host);
+  set("cf-ray", ray); set("cf-ray2", ray);
+  set("cf-time", now); set("cf-ip", ip);
+  try { document.title = host + " | 1016: Origin DNS error"; } catch {}
+})();
 
 async function sha256(str) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
