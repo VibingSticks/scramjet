@@ -17,17 +17,41 @@ const proxyEl = document.getElementById("proxy");
 // Populate the Cloudflare error facade with live-looking values.
 (function fillCloudflare() {
   const host = location.hostname || "example.com";
-  const hex = (n) => Array.from({ length: n }, () =>
-    "0123456789abcdef"[Math.floor(Math.random() * 16)]).join("");
-  const ray = hex(15) + "a1b" + Math.floor(100 + Math.random() * 900); // e.g. 8f3c...a1b204
-  const now = new Date().toUTCString().replace(/^\w+, /, "").replace(" GMT", "");
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+
+  // Timestamp in Cloudflare's "YYYY-MM-DD HH:MM:SS UTC" format.
+  const d = new Date(), p = (n) => String(n).padStart(2, "0");
+  const ts = `${d.getUTCFullYear()}-${p(d.getUTCMonth()+1)}-${p(d.getUTCDate())} ` +
+             `${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())} UTC`;
+
+  // Random Cloudflare datacenter city for the middle column.
+  const cities = ["Warsaw","Frankfurt","Amsterdam","London","Paris","Ashburn",
+    "Chicago","San Jose","Singapore","Tokyo","Toronto","Madrid","Stockholm"];
+  const city = cities[Math.floor(Math.random() * cities.length)];
+
+  // A plausible public IP, revealed on "Click to reveal".
   const ip = [Math.floor(Math.random()*223)+1, Math.floor(Math.random()*256),
     Math.floor(Math.random()*256), Math.floor(Math.random()*254)+1].join(".");
-  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-  set("cf-host", host); set("cf-host2", host); set("cf-host3", host);
-  set("cf-ray", ray); set("cf-ray2", ray);
-  set("cf-time", now); set("cf-ip", ip);
-  try { document.title = host + " | 1016: Origin DNS error"; } catch {}
+
+  set("cf-host", host);
+  set("cf-city", city);
+  set("cf-time", ts);
+  const ipEl = document.getElementById("cf-ip");
+  if (ipEl) ipEl.dataset.ip = ip;
+  try { document.title = host + " | 521: Web server is down"; } catch {}
+
+  // Position the white down-caret centered under the Host column (caret is
+  // absolutely positioned relative to .band; bottom:-11px comes from CSS).
+  const placeCaret = () => {
+    const caret = document.getElementById("cf-caret");
+    const col = caret && caret.closest(".col");
+    const band = document.querySelector("#error .band");
+    if (!caret || !col || !band) return;
+    const cRect = col.getBoundingClientRect(), bRect = band.getBoundingClientRect();
+    caret.style.left = (cRect.left - bRect.left + cRect.width / 2 - 12) + "px";
+  };
+  placeCaret();
+  addEventListener("resize", placeCaret);
 })();
 
 async function sha256(str) {
