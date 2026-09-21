@@ -44,6 +44,26 @@ The server reads Render's `PORT`; HTTPS is automatic on `*.onrender.com`.
 Because `vendor/` is committed, Render needs no build step beyond `npm install`
 and never touches the Rust toolchain.
 
+## Access gate (obfuscated)
+
+The landing page is a decoy Cloudflare "Web server is down" (521) error. Typing
+the secret code unlocks the proxy. The gate logic lives in `src/index.js`
+(editable source) and is **obfuscated** into the served `public/index.js`:
+
+```bash
+# edit the gate / facade logic here:
+#   src/index.js
+npm run obfuscate      # regenerates public/index.js (mangled, string-encrypted)
+```
+
+- Default code: `opensesame` (stored as a SHA-256 hash, not plaintext). To change
+  it: `printf '%s' 'newcode' | sha256sum`, then update SECRET_HASH / CODE_LEN in
+  `src/index.js` and re-run `npm run obfuscate`.
+- **Obfuscation is obscurity, not security** — the code still runs in the browser
+  and can be recovered by a determined person. It stops casual DevTools/View-Source
+  reading, nothing more. Don't run `npm run obfuscate` inside the pre-push hook: its
+  output is randomized each run, so it would always look "changed".
+
 ## Files
 
 - `server.js` — serves `vendor/` assets + generates `/sw.js` and

@@ -6,14 +6,18 @@
   "description": "Deployable Scramjet proxy serving the LOCAL workspace build (no npm runtime downloads)",
   "scripts": {
     "start": "node server.js",
-    "sync": "node sync-build.mjs"
+    "sync": "node sync-build.mjs",
+    "obfuscate": "node obfuscate.mjs"
   },
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "@mercuryworkshop/wisp-js": "^0.4.1",
     "express": "^4.21.2"
   },
   "devDependencies": {
-    "@mercuryworkshop/libcurl-transport": "^2.0.5"
+    "@mercuryworkshop/libcurl-transport": "^2.0.5",
+    "javascript-obfuscator": "^5.8.0"
   }
 }
