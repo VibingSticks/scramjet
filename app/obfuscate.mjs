@@ -1,14 +1,17 @@
-// Build step: obfuscate src/index.js -> public/index.js (the served file).
-// Edit src/index.js, then run: npm run obfuscate
-import { readFileSync, writeFileSync } from "node:fs";
+// Build: obfuscate src/index.js and inline it into src/index.html, producing
+// public/index.html. No separate /index.js is served — the page is a single
+// HTML document, like a real Cloudflare error page.
+// Edit src/index.js or src/index.html, then run: npm run obfuscate
+import { readFileSync, writeFileSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import Obfuscator from "javascript-obfuscator";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const src = readFileSync(join(here, "src/index.js"), "utf8");
+const js = readFileSync(join(here, "src/index.js"), "utf8");
+const html = readFileSync(join(here, "src/index.html"), "utf8");
 
-const result = Obfuscator.obfuscate(src, {
+const obf = Obfuscator.obfuscate(js, {
   target: "browser",
   renameGlobals: true,
   compact: true,
@@ -31,7 +34,14 @@ const result = Obfuscator.obfuscate(src, {
   selfDefending: true,
   debugProtection: true,
   debugProtectionInterval: 4000,
-});
+}).getObfuscatedCode()
+  // never let a literal </script> break out of the inline tag
+  .replace(/<\/script>/gi, "<\\/script>");
 
-writeFileSync(join(here, "public/index.js"), result.getObfuscatedCode());
-console.log("obfuscated -> public/index.js");
+if (!html.includes("/*__GATE__*/")) throw new Error("marker /*__GATE__*/ not found in src/index.html");
+const out = html.replace("/*__GATE__*/", () => obf);
+
+writeFileSync(join(here, "public/index.html"), out);
+// remove any previously-served separate script so it can't be requested
+try { rmSync(join(here, "public/index.js")); } catch {}
+console.log("built public/index.html (inline obfuscated gate)");

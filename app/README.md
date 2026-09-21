@@ -44,25 +44,41 @@ The server reads Render's `PORT`; HTTPS is automatic on `*.onrender.com`.
 Because `vendor/` is committed, Render needs no build step beyond `npm install`
 and never touches the Rust toolchain.
 
-## Access gate (obfuscated)
+## Access gate (stealth + obfuscated)
 
-The landing page is a decoy Cloudflare "Web server is down" (521) error. Typing
-the secret code unlocks the proxy. The gate logic lives in `src/index.js`
-(editable source) and is **obfuscated** into the served `public/index.js`:
+The served page is a **single HTML document** that looks exactly like a
+Cloudflare "Web server is down" (521) error. Until the secret code is typed:
 
+- it makes **zero** proxy requests (the only request is the HTML itself),
+- registers **no** service worker, and has **no** proxy markup in the DOM,
+- so a network filter or admin inspecting it sees only a Cloudflare error page.
+
+Typing the code loads the proxy runtime on the fly and swaps in the browser UI.
+The gate script is **obfuscated and inlined** into the HTML (no separate
+`/index.js` to spot).
+
+### Editing / rebuilding
+Source lives in `src/`; the served file is generated:
 ```bash
-# edit the gate / facade logic here:
-#   src/index.js
-npm run obfuscate      # regenerates public/index.js (mangled, string-encrypted)
+#   src/index.html   -> the Cloudflare facade
+#   src/index.js     -> the gate + deferred proxy loader
+npm run obfuscate        # -> public/index.html (obfuscated, inlined)
 ```
 
-- Default code: `opensesame` (stored as a SHA-256 hash, not plaintext). To change
-  it: `printf '%s' 'newcode' | sha256sum`, then update SECRET_HASH / CODE_LEN in
-  `src/index.js` and re-run `npm run obfuscate`.
-- **Obfuscation is obscurity, not security** — the code still runs in the browser
-  and can be recovered by a determined person. It stops casual DevTools/View-Source
-  reading, nothing more. Don't run `npm run obfuscate` inside the pre-push hook: its
-  output is randomized each run, so it would always look "changed".
+### Changing the code
+The code is stored only as a SHA-256 hash (`H`) with its length (`L`) in
+`src/index.js`. To set your own (recommended — pick a long random one):
+```bash
+printf '%s' 'yourlongcode' | sha256sum      # copy the hash into H
+# set L to the code's length, then:
+npm run obfuscate
+```
+
+- **This is obscurity, not security.** The code still runs in the browser, so a
+  determined person can recover the logic (deobfuscator, debugger). It defeats
+  casual inspection and makes the page look innocent — nothing more.
+- Don't run `npm run obfuscate` in the pre-push hook: its output is randomized
+  each run, so it would always look "changed".
 
 ## Files
 
